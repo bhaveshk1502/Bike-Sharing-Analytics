@@ -1,0 +1,443 @@
+---
+title: "R Notebook"
+name : "Bhavesh kumar & Kshtij Upadhyay"
+output : html_document
+---
+
+
+```{r}
+library(pacman)
+library(datasets)
+library(tidyverse)
+library(dplyr)
+library(scales)
+library(ggplot2)
+#library(caret)
+library(lubridate)
+```
+
+
+```{r}
+## Importing the data 
+biketrain <- read.csv("train.csv")
+biketest <- read.csv("test.csv")
+```
+
+
+```{r}
+head(biketrain)
+dim(biketrain)
+head(biketest)
+dim(biketest)
+```
+
+
+```{r}
+## Making equal no. of columns in boths datasets 
+biketest$registered=0
+biketest$casual=0
+biketest$count=0
+
+## Joining both train and test datasets
+
+bikesharing <- rbind(biketrain, biketest)
+
+## Inspecting the data
+
+summary(bikesharing)
+str(bikesharing)
+
+## season -  1 = spring, 2 = summer, 3 = fall, 4 = winter 
+## weather - 1: Clear, Few clouds, Partly cloudy, Partly cloudy ; 2: Mist + Cloudy, Mist + Broken clouds, Mist + Few clouds, Mist ;3: Light Snow, Light Rain + Thunderstorm + Scattered clouds, Light Rain + Scattered clouds ;4: Heavy Rain + Ice Pallets + Thunderstorm + Mist, Snow + Fog 
+
+## Converting a few a variables into factors
+bikesharing$season <- as.factor(bikesharing$season)
+bikesharing$weather <- as.factor(bikesharing$weather)
+bikesharing$holiday <- as.factor(bikesharing$holiday)
+```
+
+
+```{r}
+## Extracting the Hour of renting from datetime
+
+bikesharing$hour = substr(bikesharing$datetime,12,13)
+bikesharing$hour <- as.factor(bikesharing$hour)
+```
+
+EDA using plot
+
+```{r}
+plot(bikesharing$count)
+plot(bikesharing$hour, bikesharing$count)
+plot(bikesharing$season, bikesharing$count)
+plot(bikesharing$temp, bikesharing$count)
+plot(bikesharing$holiday, bikesharing$count)
+plot(bikesharing)
+```
+
+
+```{r}
+date <- substr(bikesharing$datetime,1,10)
+days<-weekdays(as.Date(date))
+bikesharing$day=days
+boxplot(bikesharing$registered ~ bikesharing$day, xlab = "day", ylab = "count of registered users")
+```
+
+
+```{r}
+boxplot(bikesharing$casual ~ bikesharing$day, xlab = "day", ylab = "count of casual users")
+```
+
+
+```{r fig.height = 7, fig.width = 13}
+library(sqldf)
+library(ggplot2)
+# Get the average count of bikes rent by season, hour
+season_summary_by_hour <- sqldf('select season, hour, avg(count) as count from bikesharing group by season, hour')
+
+ggplot(bikesharing, aes(x=hour, y=count, color=season))+geom_point(data = season_summary_by_hour, aes(group = season))+geom_line(data = season_summary_by_hour, aes(group = season))+ggtitle("Bikes Rent By Season and Hour")+ scale_colour_hue('Season',breaks = levels(bikesharing$season), labels=c('spring', 'summer', 'fall', 'winter'))
+
+
+
+```
+
+
+```{r}
+# Get the average count of bikes rent by weather, hour
+weather_summary_by_hour <- sqldf('select weather, hour, avg(count) as count from bikesharing group by weather, hour')
+
+
+ggplot(bikesharing, aes(x=hour, y=count, color=weather))+geom_point(data = weather_summary_by_hour, aes(group = weather))+geom_line(data = weather_summary_by_hour, aes(group = weather))+ggtitle("Bikes Rent By Weather and Hour")+ scale_colour_hue('Weather',breaks = levels(bikesharing$weather), labels=c('Good', 'Normal', 'Bad', 'Very Bad'))
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+boxplot(bikesharing$count ~ bikesharing$weather, xlab= "Weather conditions", ylab = "Count of total users")
+```
+
+
+```{r}
+boxplot(bikesharing$registered ~ bikesharing$weather, xlab= "Weather conditions", ylab = "Count of registered users")
+```
+
+
+```{r}
+boxplot(bikesharing$casual ~ bikesharing$weather, xlab= "Weather conditions", ylab = "Count of casual users")
+```
+
+
+```{r}
+
+## We can use ggplot2 to visualize Hour and the Total Count of Bike Sharing
+
+ggplot(data=bikesharing, aes(x = hour, y=count, fill=hour))+geom_bar(stat = "identity")+ggtitle(label = "Hourly Comparison with Seasons")+theme_minimal()+theme(plot.title = element_text(hjust = 0.5, lineheight = 0.8, face = "bold"),legend.position = "none")+xlab("Weekdays")+ylab("Count")
+
+
+```
+
+
+```{r}
+## Plotting Hour and Season with Count
+ggplot(bikesharing, aes(hour, count)) + 
+geom_bar(aes(fill = season), position = 'dodge', stat = 'identity') + 
+ labs(title="Count with Hours of Day and Seasons") + scale_y_continuous(labels = comma) + theme_grey()
+```
+
+
+```{r}
+## Day Of the Week
+
+bikesharing$date = substr(bikesharing$datetime,1,10)
+days<-weekdays(as.Date(bikesharing$date))
+bikesharing$days=days
+
+## To chronologically order the the weekdays 
+bikesharing$days <- factor(bikesharing$days, levels=c("Monday","Tuesday", "Wednesday", "Thursday", "Friday", "Saturday","Sunday"))
+
+```
+
+
+```{r}
+## Visualize Weekdays 
+
+ggplot(data=bikesharing, aes(x = days, y=casual, fill=days))+geom_bar(stat = "identity")+ggtitle(label = "Weekday Comparison of Casual Users")+theme_minimal()+theme(plot.title = element_text(hjust = 0.5, lineheight = 0.8, face = "bold"),legend.position = "none")+xlab("Weekdays")+ylab("Casual Count")+ scale_y_continuous(labels = comma)
+
+```
+
+
+```{r}
+ggplot(data=bikesharing, aes(x = days, y=registered, fill=days))+geom_bar(stat = "identity")+ggtitle(label = "Weekday Comparison of Registered Users")+theme_minimal()+theme(plot.title = element_text(hjust = 0.5, lineheight = 0.8, face = "bold"),legend.position = "none")+xlab("Weekdays")+ylab("Registered Count") + scale_y_continuous(labels = comma)
+```
+
+
+```{r}
+## Total count of users across the Days of the Week
+
+ggplot(data=bikesharing, aes(x = days, y=count, fill=days))+geom_bar(stat = "identity")+ggtitle(label = "Weekday Comparison")+theme_minimal()+theme(plot.title = element_text(hjust = 0.5, lineheight = 0.8, face = "bold"),legend.position = "none")+xlab("Weekdays")+ylab("Total Count") + scale_y_continuous(labels = comma) 
+
+```
+
+
+```{r}
+## Some Data Visualisations to Analyse Usage
+
+ggplot(data=bikesharing, aes(x=days, y=count, fill=weather)) +
+  geom_bar(stat="identity", position=position_dodge()) + ggtitle(label ="Day of the Week and Weather with Count Comparison") 
+
+ggplot(data=bikesharing, aes(x=days, y=count, fill=season)) +
+  geom_bar(stat="identity", position=position_dodge()) + ggtitle(label ="Day of the Week and Season with Count Comparison") 
+
+
+
+```
+
+
+```{r}
+## Getting Month Names from date
+
+bikesharing$date <- as.POSIXct(bikesharing$date)
+
+bikesharing$MONTHS <- format(bikesharing$date,"%B")
+
+bikesharing$MONTHS <- factor(bikesharing$MONTHS, levels=c("January","February", "March", "April", "May", "June","July", "August", "September", "October", "November", "December"))
+```
+
+
+```{r}
+
+## Monthly Comparison of Users
+ggplot(data=bikesharing, aes(x = MONTHS, y=count, fill=MONTHS))+geom_bar(stat = "identity")+ggtitle(label = "Months Comparison")+theme_minimal()+theme(plot.title = element_text(hjust = 0.5, lineheight = 0.8, face = "bold"), legend.position = "none")+xlab("MONTHS")+ylab("Count") 
+
+## Day of the Week and Month
+ggplot(data=bikesharing, aes(x = MONTHS, y=count, fill=days))+geom_bar(stat = "identity")+ggtitle(label = "Months with Days of Week Comparison")+theme_minimal()+theme(plot.title = element_text(hjust = 0.5, lineheight = 0.8, face = "bold"))+xlab("MONTHS")+ylab("Count")
+
+```
+
+
+```{r}
+## Day Of the Month
+
+bikesharing$dom = substr(bikesharing$datetime,9,10)
+bikesharing$dom <- as.numeric(bikesharing$dom)
+
+## Visualizing the demand only till 19 th of every Month as we have to predict the number of users from 20th to end of each month
+
+ggplot(data=bikesharing, aes(x = dom, y=count, fill=dom))+geom_bar(stat = "identity")+ggtitle(label = "Months Comparison")+theme_minimal()+theme(plot.title = element_text(hjust = 0.5, lineheight = 0.8, face = "bold"), legend.position = "none")+xlab("Days upto 19th")+ylab("Count") + xlim(01,19) 
+
+
+ggplot(data=bikesharing, aes(x = dom, y=count, fill=season))+geom_bar(stat = "identity")+ggtitle(label = "Day with Season Comparison")+theme_minimal()+theme(plot.title = element_text(hjust = 0.5, lineheight = 0.8, face = "bold"))+xlab("Days upto 19th")+ylab("Count") + xlim(01,19)
+
+
+
+```
+
+
+```{r}
+## Creating a Heatmap using geom_tile()
+
+ggplot(bikesharing, aes(dom, hour, fill = count)) + geom_tile(color = "white") + xlab("Day")
+```
+
+
+```{r}
+## Year 
+bikesharing$YEAR = substr(bikesharing$datetime,1,4)
+```
+
+
+```{r}
+## Yearly plot
+
+plot(x = bikesharing$date, y= bikesharing$count)
+```
+
+
+```{r}
+## Free Time in weekdays
+bikesharing$officehour <- as.factor(bikesharing$hour == c(9:17))
+bikesharing$freehourworkday <- as.factor(bikesharing$officehour == FALSE && bikesharing$holiday == 0)
+
+## Ideal Conditions to ride bike 
+bikesharing$Ideal <- as.factor(bikesharing$weather == 1 && bikesharing$windspeed < 20 && bikesharing$humidity < 25 && bikesharing$atemp < 35)
+table(bikesharing$Ideal, bikesharing$count)
+
+## Weeked
+bikesharing$weekend=0
+bikesharing$weekend[bikesharing$day=="Sunday" | bikesharing$day=="Saturday" ]=1
+
+## Amount of Ozone present , as Ozone is major contibutor of air pollution
+bikesharing$ozone <- 5.3*(bikesharing$windspeed)+0.4*(bikesharing$temp)+0.1*(bikesharing$humidity)
+
+## Vapour Pressure
+bikesharing$vap = 0
+bikesharing$vap <- 1/(bikesharing$temp + 230)
+
+## Visibility Conditions
+
+bikesharing$light <- as.factor(bikesharing$hour == c(7:19))
+
+bikesharing$vis <- as.factor(bikesharing$weather == 1 && bikesharing$light == TRUE)
+
+## Is it a summer season with some great condition to ride
+bikesharing$summer <- as.factor(bikesharing$season == 1 && bikesharing$season == 2 && bikesharing$weather == 1 && bikesharing$windspeed < 20 && bikesharing$humidity < 25 && bikesharing$atemp < 25)
+```
+
+
+```{r}
+ggplot(bikesharing, aes(temp, count)) + geom_jitter(aes(colour = weather)) + theme_minimal() + ggtitle(label = "Effect of Weather and Temp on Count") + theme(plot.title = element_text(hjust = 0.5, lineheight = 0.8, face = "bold"))
+
+ggplot(bikesharing, aes(windspeed, hour)) + geom_jitter() + theme_minimal() + ggtitle(label = "Windspeed and Hour of the Day") + theme(plot.title = element_text(hjust = 0.5, lineheight = 0.8, face = "bold"))
+
+```
+
+
+```{r}
+bikesharing$logcas <- log(bikesharing$casual + 1)
+bikesharing$logreg <- log(bikesharing$registered + 1)
+
+str(bikesharing)
+
+bikesharing = bikesharing %>% mutate_if(is.character, as.factor)
+```
+
+
+```{r}
+## splitting into training and test data set
+set.seed(123)
+biketrain <- bikesharing[1:10886, ]
+biketest <- bikesharing[10887:17379, ]
+
+```
+
+```{r}
+## set seed to randomly generate numbers
+set.seed(1234) 
+
+## load the randomForest package
+library(randomForest)
+
+## Building the model of casual users
+bkmodel <- randomForest(logcas ~ season + holiday + workingday + weather + temp + atemp + humidity + windspeed + Ideal + hour + MONTHS + days + dom + officehour + freehourworkday + weekend + YEAR + vap + ozone + vis + light + summer, data = biketrain, importance = TRUE, ntree = 300, proximity = TRUE, nPreb = 1.5, replace = TRUE)
+
+
+
+
+
+
+
+
+
+
+
+varImpPlot(bkmodel, pch = 10,col = "blue",main = "Feature Importance")
+
+# Predicting using the biketest set
+predict1 <- predict(bkmodel, biketest)
+
+summary(predict1)
+
+
+## Building the model of registered users
+set.seed(87659)
+bkmodel1 <- randomForest(logreg ~ season + holiday + workingday + weather + temp + atemp + humidity + windspeed + Ideal + hour + MONTHS + days + dom + officehour + freehourworkday + weekend + YEAR + vap + ozone + vis + light + summer, data = biketrain, importance = TRUE, ntree = 300, proximity = TRUE, nPreb = 1.5, replace = TRUE)
+
+varImpPlot(bkmodel1, pch = 10,col = "blue",main = "Feature Importance")
+
+# redicting using the biketest set
+predict2 <- predict(bkmodel1, biketest)
+
+summary(predict2)
+
+
+## assigning the predicted values to logreg and logcas variables of test set
+
+biketest$logreg = predict2
+biketest$logcas = predict1
+
+## converting the log values
+
+biketest$casual = exp(biketest$logcas)
+biketest$registered = exp(biketest$logreg)
+
+## adding the no. of casual users and registered users to count column
+
+biketest$count=biketest$casual+biketest$registered
+
+# Save the solution to a dataframe with datetime and count columns 
+bike<-data.frame(datetime=biketest$datetime,count=biketest$count)
+
+## Writing the solution to a file
+write.csv(bike,file="bikeshare.csv",row.names=FALSE)
+```
+```{r}
+
+# Applying Linear Regression model
+
+## set seed to randomly generate numbers
+set.seed(1234) 
+
+
+
+## Building the model of casual users
+lmmodel <- lm(logcas ~ season + holiday + workingday + weather, data = biketrain)
+
+
+plot(lmmodel, pch = 10,col = "blue")
+
+# Predicting using the biketest set
+predict3 <- predict(lmmodel, biketest)
+
+summary(predict3)
+
+
+## Building the model of registered users
+set.seed(87659)
+lmmodel <- lm(logreg ~ season + holiday + workingday + weather , data = biketrain)
+
+plot(lmmodel, pch = 10,col = "blue")
+
+# redicting using the biketest set
+predict4 <- predict(lmmodel, biketest)
+
+summary(predict4)
+
+
+## assigning the predicted values to logreg and logcas variables of test set
+
+biketest$logreg = predict4
+biketest$logcas = predict3
+
+## converting the log values
+
+biketest$casual = exp(biketest$logcas)
+biketest$registered = exp(biketest$logreg)
+
+## adding the no. of casual users and registered users to count column
+
+biketest$count=biketest$casual+biketest$registered
+
+# Save the solution to a dataframe with datetime and count columns 
+bike<-data.frame(datetime=biketest$datetime,count=biketest$count)
+
+## Writing the solution to a file
+write.csv(bike,file="bikeshare1.csv",row.names=FALSE)
+```
+
+
+```{r}
+###decision tree
+install.packages("rpart.plot")
+library(rpart)
+fit <- rpart(logcas~., data = biketrain, method = 'class')
+rpart.plot(fit, extra = 106)
+
+# Predicting using the biketest set
+predict1 <-predict(fit, biketest, type = 'class')
+
+summary(predict1)
+```
